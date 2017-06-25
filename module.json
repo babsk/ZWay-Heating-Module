@@ -1,0 +1,21 @@
+{
+       "dependencies": ["Cron"],
+	"singleton" : false,
+	"category": "automation_basic",
+	"author": "Z-Wave.Me",
+	"homepage": "http://razberry.z-wave.me",
+	"icon": "icon.png",
+       "moduleName": "MyTestMod",
+	"version": "1.0.0",
+	"maturity": "stable",
+	"repository": {
+		"type": "git",
+		"source": "https://github.com/Z-Wave-Me/home-automation"
+	},
+	"defaults" : {
+		"title" : "__m_title__",
+		"description" : "__m_descr__"
+	}
+
+}
+
