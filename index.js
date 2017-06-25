@@ -408,7 +408,7 @@ MyTestMod.prototype.setupRooms = function () {
 
   room = new Room (SAM_OFFICE_ID,"Sam Office",RoomType.RADIATOR,RoomMode.TIMER);
   room.addNode (29);
-  room.addNode (48);
+  room.addTempSensor("ZWayVDev_zway_48-0-49-1");
   this.rooms.push (room);
   room.loadSchedule ();   
   room.activateSchedule ();
@@ -429,6 +429,7 @@ MyTestMod.prototype.setupRooms = function () {
   room.addNode (42);
   room.addNode (47);
   room.addNode (2);
+  room.addTempSensor("HTTP_Device_sensorMultilevel_21");
   this.rooms.push (room);
   room.loadSchedule ();   
   room.activateSchedule ();

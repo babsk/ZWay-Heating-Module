@@ -45,7 +45,7 @@ function Room (id,title,type,mode) {
   this.desiredTemp = 0;
   this.currentTemp = 0;
   this.hasTempSensor = false;
-  this.tempSensorId = 0;
+  this.tempSensorId = "";
 
   // override / boost variables
   this.boostSP = COSY_SETPOINT;
@@ -68,7 +68,7 @@ Room.prototype.addNode= function (nodeID) {
 // vDevID is of the form 'ZWayVDev_zway_2-0-49-1' or 'HTTP_Device_sensorMultilevel_21'.
 //
 Room.prototype.addTempSensor= function (vDevID) {
-  this.sensorId = vDevID;
+  this.tempSensorId = vDevID;
   this.hasTempSensor = true;
 }
 
@@ -209,7 +209,7 @@ Room.prototype.updateCurrentTemp = function () {
   else {
     // if room has its own sensor, then read current from sensor, otherwise use master thermostat
     if (this.hasTempSensor) {
-      this.currentTemp = zway.devices[this.tempSensorId].instances[0].commandClasses[49].data[1].val.value;
+      this.currentTemp = controller.devices.get(this.tempSensorId).get("metrics:level");
       if (this.currentTemp != oldCurrent) {
         boilerModule.logger.pushToLog ("R_"+this.id+"_TEMP",this.currentTemp);
       }
@@ -491,18 +491,7 @@ Room.prototype.loadSchedule = function () {
     }
     this.offset = 3;
   } 
-
-  // Does the room have its own temp sensor?
-  for (i=0; i<this.nodes.length; i++) {
-      deviceId = this.nodes[i];
-      if (deviceIsTempSensor(deviceId)) {
-        this.hasTempSensor = true;
-        this.tempSensorId = deviceId;
-        break;
-      }
-    }
   
-
    // schedule must always be sorted after additions / deletions are made
    this.schedule.sort(function(a,b)
               {
