@@ -38,6 +38,7 @@ function Room (id,title,type,mode) {
   this.callForHeat = false;
   this.offset = 0;
 
+  this.trvs = [];
   this.nodes = [];
   this.schedule = [];
 
@@ -60,6 +61,15 @@ function Room (id,title,type,mode) {
 //
 Room.prototype.addNode= function (nodeID) {
    this.nodes.push (nodeID);
+}
+
+//
+// addTRV
+// Add a TRV for radiator control.
+// vDevID is of the form ''
+//
+Room.prototype.addTRV = function (vDevID) {
+	this.trvs.push (vDevID);
 }
 
 //
@@ -106,23 +116,21 @@ Room.prototype.adjustValves = function () {
       }    
     }
     console.log ("MYTESTMOD: " + this.title + " desired temp is " + desiredTemp);
-
-    for (i=0; i<this.nodes.length; i++)
+	
+	for (i=0; i<this.trvs.length; i++)
     {
-      deviceId = this.nodes[i];
-      if (deviceIsTRV(deviceId))
+      deviceId = this.trvs[i];
+
+      setPoint = controller.devices.get(deviceId).get("metrics:level");
+
+      console.log ("MYTESTMOD: " + this.title + " radiator valve " + deviceId + " set to " + setPoint);
+
+      if (desiredTemp != setPoint)
       {
-        setPoint = zway.devices[deviceId].instances[0].commandClasses[67].data[1].val.value;
-
-        console.log ("MYTESTMOD: " + this.title + " radiator valve " + deviceId + " set to " + setPoint);
-
-        if (desiredTemp != setPoint)
-        {
           // change valve set point
           msg = "adjust TRV " + deviceId + " sp: " + setPoint + "(dp: " + desiredTemp + ")";
           controller.addNotification("warning", msg, "module", "MyTestMod");
-          zway.devices[deviceId].instances[0].commandClasses[67].Set(1,desiredTemp);
-        }
+		  controller.devices.get(deviceId).performCommand("exact",{level:desiredTemp});
       }
     }
   }

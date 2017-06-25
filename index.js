@@ -393,42 +393,42 @@ MyTestMod.prototype.setupRooms = function () {
   // TODO: read the rest of the rooms from config, including valves etc.
   // TODO: sanity check that config matches the network
   room = new Room (LIVING_ROOM_ID,"Living Room",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addNode (20);
-  room.addNode (30);
-  room.addNode (31);
+  room.addTempSensor("ZWayVDev_zway_2-0-49-1");
+  room.addTRV ("ZWayVDev_zway_20-0-67-1");
+  room.addTRV ("ZWayVDev_zway_30-0-67-1");
+  room.addTRV ("ZWayVDev_zway_31-0-67-1");
   this.rooms.push (room);
   room.loadSchedule ();
   room.activateSchedule();
 
   room = new Room (SIDE_ROOM_ID,"Side Room",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addNode (36);
+  room.addTRV ("ZWayVDev_zway_36-0-67-1");
   this.rooms.push (room);
   room.loadSchedule ();   
   room.activateSchedule();
 
   room = new Room (SAM_OFFICE_ID,"Sam Office",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addNode (29);
+  room.addTRV ("ZWayVDev_zway_29-0-67-1");
   room.addTempSensor("ZWayVDev_zway_48-0-49-1");
   this.rooms.push (room);
   room.loadSchedule ();   
   room.activateSchedule ();
 
   room = new Room (BECKY_ROOM_ID,"Beckys Room",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addNode (38);
+  room.addTRV ("ZWayVDev_zway_38-0-67-1");
   this.rooms.push (room);
   room.loadSchedule ();   
   room.activateSchedule ();
 
   room = new Room (TOMMY_ROOM_ID,"Tommys Room",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addNode (39);
+  room.addTRV ("ZWayVDev_zway_39-0-67-1");
   this.rooms.push (room);
   room.loadSchedule ();   
   room.activateSchedule ();
 
   room = new Room (KITCHEN_ID,"Kitchen",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addNode (42);
-  room.addNode (47);
-  room.addNode (2);
+  room.addTRV ("ZWayVDev_zway_42-0-67-1");
+  room.addTRV ("ZWayVDev_zway_47-0-67-1");
   room.addTempSensor("HTTP_Device_sensorMultilevel_21");
   this.rooms.push (room);
   room.loadSchedule ();   
