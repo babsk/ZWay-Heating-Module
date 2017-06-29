@@ -16,9 +16,8 @@ var KITCHEN_ID     = 1007;
 
 var RoomType = 
 {
-  GLOBAL    : 1,
-  ONOFF     : 2,
-  RADIATOR  : 3,
+  ONOFF     : 1,
+  RADIATOR  : 2,
 };
 
 var RoomMode =

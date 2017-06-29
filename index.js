@@ -21,8 +21,6 @@ function MyTestMod (id, controller) {
   this.pumpController = -1;
   this.hotWaterSwitch = -1;
 
-  this.boostSP = DEFAULT_SETPOINT;
-
   boilerModule = this;
 }
 
