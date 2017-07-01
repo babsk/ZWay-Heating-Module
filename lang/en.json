@@ -1,4 +1,4 @@
 {
-	"m_title":"My Test Module",
-	"m_descr":"Blah blah blah."
+	"m_title":"Central Heating Controller",
+	"m_descr":"This app allows for the zoning of a central heating system using a boiler controller, TRVs and temperature sensors.<br>The following devices are compulsory and the app expects to find one of each:<br><br><ul><li>Boiler Controller (Horstmann ASR-ZW / Secure SSR303)</li><li>Master Thermostat (Horstmann HRT4-ZW  / Secure SRT323)</li></ul><br>The following devices are optional:<br><br><ul><li>Radiator TRVs (Danfoss LC recommended)</li><li>Temperature Sensors (ZWave or custom HTTP devices)</li></ul><br>In addition, if using pumped hot water delivery then the following devices are recommended:<br><br><ul><li>ZWave switch (Horstmann / Secure)</li><li>Fibaro Button</li></ul><br>Inclusion of the devices should be carried out using the SmartHome UI. Initial (basic) configuration of this app should be carried out via the SmartHome UI (setting up of zones and the addition of TRVs). Once initialised, it is recommended that all further user interaction / configuration is carried out via the accompanying Central Heating Android App. This includes the setting up of all schedules."
 }

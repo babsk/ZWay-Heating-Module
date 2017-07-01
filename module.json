@@ -1,21 +1,163 @@
 {
-       "dependencies": ["Cron"],
-	"singleton" : false,
+	"dependencies": ["Cron"],
+	"singleton" : true,
 	"category": "automation_basic",
-	"author": "Z-Wave.Me",
-	"homepage": "http://razberry.z-wave.me",
+	"author": "Barbara Kershaw",
+	"homepage": "http://kershawkids.blogspot.co.uk/",
 	"icon": "icon.png",
-       "moduleName": "MyTestMod",
+	"moduleName": "MyTestMod",
 	"version": "1.0.0",
 	"maturity": "stable",
 	"repository": {
 		"type": "git",
-		"source": "https://github.com/Z-Wave-Me/home-automation"
+		"source": "https://github.com/babsk/ZWay-Heating-Module"
 	},
 	"defaults" : {
 		"title" : "__m_title__",
-		"description" : "__m_descr__"
-	}
+		"description" : "__m_descr__",
+		"rooms": []
+	},
+	"schema": {
+			"title":"Central Heating",
+			"description":"Central Heating",
+			"type":"object",
+                        "properties": {
+			
+				"rooms": {
+						"title": "Rooms",
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+									"title": 	{
+											"type": "string",
+											"title": "title",
+											"required": true
+											},
+									"primary": 	{
+											"type": "boolean",
+											"title": "primary",
+											"required": true
+											},											
+									"tempSensorId": {
+											"field": "enum",
+											"datasource": "namespaces",
+											"enum": "namespaces:devices_sensorMultilevel:deviceId",
+											"required": false
+											},											
+									"mode": 	{
+											"title": "mode",
+											"field": "enum",
+											"enum": [1,2,3],
+											"required": true
+											},
+									"type": 	{
+											"title": "type",
+											"field": "enum",
+											"enum": [1,2],
+											"required": true
+											},										
+									"boostSP": 	{
+											"type": "number",
+											"required": false,
+											"title": "boost SP"
+											},
+									"boostDuration": {
+											"type": "number",
+											"required": false,
+											"title": "boost duration"
+											},
+									"trvs": 	{
+											"type": "array",
+											"required": false,
+											"title": "TRVs",
+											"items": {
+													"title":"TRV id",
+													"field": "enum",
+													"datasource": "namespaces",
+													"enum": "namespaces:devices_thermostat:deviceId",
+													"required": true
+												}
+											},											
+									"schedule": 	{
+											"type": "array",
+											"required": false,
+											"title": "timer events",
+											"items": {
+													"type": "object",
+													"properties": {											
+															"sp": {
+																"type": "number",
+																"required": false,
+																"title": "set point"
+															},
+															"day": {
+																"type": "integer",
+																"required": false,
+																"title": "day"
+															},
+															"hour": {
+																"type": "integer",
+																"required": false,
+																"title": "hour"
+															},
+															"minute": {
+																"type": "integer",
+																"required": false,
+																"title": "minute"
+															}
+														}
+													}
+											}
+
+									}
+								}
+						}
+                       }
+                    },
+    "options": {
+                "fields": {
+                            "name": {
+                                "size": 20,
+                                "placeholder": "Central Heating"
+                            },
+                            "rooms": { 
+								"fields": {							           
+										"item": {
+											"fields": {
+													"tempSensorId": {
+																"datasource": "namespaces",
+																"field": "optionLabels",
+																"optionLabels": "namespaces:devices_sensorMultilevel:deviceName"
+													},
+													"type": {
+																"field": "optionLabels",
+																"optionLabels": ["onoff","radiator"]
+													},
+													"mode": {
+																"field": "optionLabels",
+																"optionLabels": ["off","timer","boost"]
+													},
+													"trvs": {
+														"fields": {
+															"item": {
+																"datasource": "namespaces",
+																"field": "optionLabels",
+																"optionLabels": "namespaces:devices_thermostat:deviceName"
+															}
+														}
+													}
+
+
+													
+											}																									
+										}
+									}
+								}
+							}
+						}
+
+
 
 }
 
