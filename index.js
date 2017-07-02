@@ -159,12 +159,9 @@ MyTestMod.prototype.init = function (config)
          }
          self.pumpController = pumpController;     
 
+		self.validateAndLoadConfig();
 
-        
-
-         // TODO: load and verify config
-
-         self.initialised = true;
+        self.initialised = true;
       }
 
       // once everything has been setup, we just service the rooms periodically
@@ -176,14 +173,20 @@ MyTestMod.prototype.init = function (config)
     
     this.controller.on('MyTestMod.poll', this.onPoll);
 
-    this.setupRooms ();
+//    this.setupRooms ();
+
     this.router = new HillViewAPI ();
     this.logger = new HillViewLogger ();
 }
 
 MyTestMod.prototype.stop = function () 
-{
-    var self = this;
+{	
+	var self = this;
+
+    self.initialised = false;
+    self.rooms = [];
+
+    console.log ("MYTESTMOD: stop");
     
     MyTestMod.super_.prototype.stop.call(this);
 
@@ -351,6 +354,57 @@ MyTestMod.prototype.getRoom = function (title)
    }
    console.log ("MYTESTMOD: no room found");
    return null;
+}
+
+MyTestMod.prototype.getRoomConfig = function (id) {
+  return this.config.rooms[id-BASE_ROOM_ID];
+}
+
+MyTestMod.prototype.validateAndLoadConfig = function () {
+  var room;
+
+  // these are fixed rooms and cannot be modified
+
+  // TODO:
+  // Whole House relies on there being a master thermostat and a boiler controller - should raise an error and exit if there is not
+  // Hot Water relies on there being a 2nd boiler controller - should raise an error and exit if there is not
+  room = new Room (MAIN_HOUSE_ID,"Main House",RoomType.RADIATOR,RoomMode.TIMER);
+  // this will be pulled in from weather app
+  room.externalTemp = null;
+  this.rooms.push (room);
+  room.loadSchedule (null);   
+  room.activateSchedule();
+
+  room = new Room (HOT_WATER_ID,"Hot Water",RoomType.ONOFF,RoomMode.TIMER);
+  // TODO: hard coding for now
+  room.pumpRelay = this.pumpController;
+  room.pumpStatus = false;
+  room.pumpDuration = 5;
+  room.pumpTimeRemaining = 0;
+  room.boostSP = 1.0;
+  room.addNode(this.boilerController);
+  this.rooms.push (room);
+  room.loadSchedule (null);
+  room.activateSchedule();
+
+  // TODO: read the rest of the rooms from config, including valves etc.
+  // TODO: sanity check that config matches the network
+  console.log ("MYTESTMOD: config rooms len is "+this.config.rooms.length);
+  for (i=0; i<this.config.rooms.length; i++) {
+    room = new Room (BASE_ROOM_ID+i,this.config.rooms[i].title,this.config.rooms[i].type,this.config.rooms[i].mode);
+    room.primary = this.config.rooms[i].primary;
+    room.hasTempSensor = !!this.config.rooms[i].tempSensorId;
+    if (room.hasTempSensor) room.tempSensorId = this.config.rooms[i].tempSensorId;
+    room.boostSP = !!this.config.rooms[i].boostSP?this.config.rooms[i].boostSP:COSY_SETPOINT;
+    room.boostDuration = !!this.config.rooms[i].boostDuration?this.config.rooms[i].boostDuration:60;
+    for (j=0; j<this.config.rooms[i].trvs.length; j++) {
+      room.addTRV(this.config.rooms[i].trvs[j]);
+    }
+    this.rooms.push (room);
+	room.loadSchedule (this.config.rooms[i].schedule);
+	room.activateSchedule();	
+  }
+  
 }
 
 //

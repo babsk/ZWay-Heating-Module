@@ -7,6 +7,8 @@ var HOTWATER_OFF = 0.0;
 
 var MAIN_HOUSE_ID  = 1000;
 var HOT_WATER_ID   = 1001;
+var BASE_ROOM_ID   = 2000;
+
 var LIVING_ROOM_ID = 1002;
 var SIDE_ROOM_ID   = 1003;
 var SAM_OFFICE_ID  = 1004;
@@ -258,6 +260,7 @@ Room.prototype.setBoostSP = function (sp) {
   msg = "boost sp set to " + sp + " for " + this.title;
 //  this.updateDesiredTemp();
   this.updateCallForHeat();
+  this.updateConfig();
   controller.addNotification("warning", msg, "module", "MyTestMod");
 }
 
@@ -271,6 +274,7 @@ Room.prototype.setBoostSP = function (sp) {
 Room.prototype.setBoostDuration = function (val) {
   // TODO: check values
   this.boostDuration = val;
+  this.updateConfig();
   msg = "boost duration set to " + val + " for " + this.title;
   if (this.mode == RoomMode.BOOST) {
     this.boostTimeRemaining = this.boostDuration;
@@ -342,7 +346,33 @@ Room.prototype.setMode = function (mode)
   }
 //  this.updateDesiredTemp();
   this.updateCallForHeat();
+  this.updateConfig();
   controller.addNotification("warning", msg, "module", "MyTestMod");
+}
+
+/****************************************************************************
+ updateConfig
+
+ Called whenever the config has been changed via the hillview API.
+ Copies current writable fields of room into config and calls the 
+ ZWay saveConfig fn.
+
+*****************************************************************************/
+Room.prototype.updateConfig = function () {
+	var roomConfig;
+	// TODO: remember to change this for all rooms once main and hot water are in config
+	if (this.id >= BASE_ROOM_ID) {
+		roomConfig = boilerModule.getRoomConfig(this.id);
+		roomConfig.mode = this.mode;
+		roomConfig.boostSP = this.boostSP;
+		roomConfig.boostDuration = this.boostDuration;
+		roomConfig.schedule = [];
+		for (j=0; j<this.schedule.length; j++) {
+			scheduleEntry = this.schedule[j];
+			roomConfig.schedule.push(scheduleEntry);			
+		}
+		boilerModule.saveConfig();
+	}
 }
 
 /**********************************************************
@@ -366,7 +396,7 @@ loadSchedule
 Read the schedule for this room from the config.
 
 ***********************************************************/
-Room.prototype.loadSchedule = function () {
+Room.prototype.loadSchedule = function (schedule) {
   var day;
   var i;
 
@@ -401,6 +431,24 @@ Room.prototype.loadSchedule = function () {
         this.schedule.push (new ScheduleEvent (day,5,0,HOTWATER_ON,this.title));
         this.schedule.push (new ScheduleEvent (day,21,0,HOTWATER_OFF,this.title));    
     }
+  }
+  
+  // optional rooms
+  if (this.id >= BASE_ROOM_ID) {
+	  if (schedule.length == 0) {
+		  this.defaultSchedule(DEFAULT_SETPOINT);
+		  for (j=0; j<this.schedule.length; j++) {
+			  scheduleEntry = this.schedule[j];
+			  schedule.push(scheduleEntry);
+		  }
+		  boilerModule.saveConfig();
+	  }
+	  else {
+		  for (j=0; j<schedule.length; j++) {
+				scheduleEntry = schedule[j];
+				this.schedule.push (new ScheduleEvent (scheduleEntry.day,scheduleEntry.hour,scheduleEntry.minute,scheduleEntry.sp,this.title));
+		  }
+	  }
   }
 
   // Living Room
@@ -547,6 +595,7 @@ Room.prototype.updateSchedule = function (data)
   }
   this.sortSchedule();
   this.activateSchedule();
+  this.updateConfig();
 }
 
 Room.prototype.activateNextEvent = function ()
