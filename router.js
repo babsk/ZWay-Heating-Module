@@ -18,7 +18,6 @@ HillViewAPI.prototype.register = function () {
   if (zAutomationAPI)
   {
     zAutomationAPI.router.get("/hillview/rooms",zAutomationAPI.ROLE.USER,this.listRooms);
-    zAutomationAPI.router.post("/hillview/rooms", zAutomationAPI.ROLE.ADMIN, this.addRoom);
     zAutomationAPI.router.get("/hillview/nodes",zAutomationAPI.ROLE.USER,listRealDevices);
     zAutomationAPI.router.get("/hillview/nodes/:devID",zAutomationAPI.ROLE.USER,listRealDevices,[parseInt]);
     zAutomationAPI.router.get("/hillview/schedule/:roomID",zAutomationAPI.ROLE.USER,getSchedule,[parseInt]);
@@ -49,7 +48,7 @@ HillViewAPI.prototype.register = function () {
 
   http://<IP Address>/JS/Run/<function name>
 
-  TODO: They are intended to be accessed via a JSON RESTFUL API
+  They are intended to be accessed via the JSON RESTFUL API
 
 ******************************************************************************************/
 function setRoomMode (roomID, mode)
@@ -88,55 +87,6 @@ HillViewAPI.prototype.listRooms = function (roomID) {
   reply.code = 200;
   reply.data = boilerModule.rooms;
   
-  return reply;
-}
-
-HillViewAPI.prototype.addRoom = function () {
-  var title;
-  var reply = {
-                error: null,
-                data: null
-              };
-  var reqObj;
-  var roomProps = {};
-
-  try {
-        reqObj = JSON.parse(zAutomationAPI.req.body);
-      } catch (ex) {
-        reply.code = 500;
-        reply.error = "Cannot parse POST request. ERROR:" + ex.message;
-  }
-
-console.log("MYTESTMOD: " + reqObj);
-
-
-  for (var property in reqObj) {
-console.log("MYTESTMOD: " + property);
-            if ( property !== 'id') {
-                roomProps[property] = reqObj[property] ? reqObj[property] : null;
-            }
-  }
-
-  if (!!roomProps.name) {
-    boilerModule.addRoom (name);
-    reply.code = 200;
-    reply.data = {};
-
-//            this.controller.addLocation(locProps, function (data) {
-//                if (data) {
-//                    reply.code = 201;
-//                    reply.data = data;
-//                } else {
-//                    reply.code = 500;
-//                    reply.error = "Location doesn't created: Parsing the arguments has failed.";
-//                }
-//            });
-  } 
-  else {
-         reply.code = 500;
-         reply.error = "Argument 'name' is required.";
-  }
-
   return reply;
 }
 
