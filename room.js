@@ -363,7 +363,7 @@ Room.prototype.updateConfig = function () {
 	// TODO: remember to change this for all rooms once main and hot water are in config
 	if (this.id >= BASE_ROOM_ID) {
 		roomConfig = boilerModule.getRoomConfig(this.id);
-		roomConfig.mode = this.mode;
+		roomConfig.mode = this.baseMode;
 		roomConfig.boostSP = this.boostSP;
 		roomConfig.boostDuration = this.boostDuration;
 		roomConfig.schedule = [];
@@ -619,15 +619,8 @@ Room.prototype.activateSchedule = function () {
    var currentEvent;
    var desired;
    var msg;
-
-   if (nextEvent == 0) {
-      // we need the last one in the list
-      currentEvent = this.schedule.length-1;
-   }
-   else {
-      // we need the one before
-      currentEvent = nextEvent-1;
-   }
+   
+   currentEvent = this.getCurrentEvent();
 
    console.log ("MYTESTMOD current event is day: " + this.schedule[currentEvent].day + " hour: " + this.schedule[currentEvent].hour + " min: " + this.schedule[currentEvent].minute);
 
@@ -641,6 +634,23 @@ Room.prototype.activateSchedule = function () {
    this.schedule[nextEvent].start();
 }
 
+Room.prototype.deactivateSchedule = function () {
+	var currentEvent = this.getCurrentEvent();
+	this.schedule[currentEvent].stop();
+}
+
+Room.prototype.getCurrentEvent = function () {
+	var nextEvent = this.getNextEvent ();
+	
+	if (nextEvent == 0) {
+      // we need the last one in the list
+      return this.schedule.length-1;
+	  }
+	else {
+      // we need the one before
+      return nextEvent-1;
+	}
+}
 
 
 Room.prototype.getNextEvent = function ()
