@@ -48,7 +48,7 @@
 									"mode": 	{
 											"title": "mode",
 											"field": "enum",
-											"enum": [1,2,3],
+											"enum": [1,2],
 											"required": true
 											},
 									"type": 	{
@@ -136,7 +136,7 @@
 													},
 													"mode": {
 																"field": "optionLabels",
-																"optionLabels": ["off","timer","boost"]
+																"optionLabels": ["off","timer"]
 													},
 													"trvs": {
 														"fields": {
