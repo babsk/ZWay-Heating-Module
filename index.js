@@ -190,7 +190,13 @@ MyTestMod.prototype.stop = function ()
     
     MyTestMod.super_.prototype.stop.call(this);
 
-    this.controller.off('MyTestMod.poll', this.onPoll);
+	// remove all the timers
+	self.controller.emit("cron.removeTask", "MyTestMod.poll");
+    self.controller.off('MyTestMod.poll', this.onPoll);
+	
+	for (i=0; i<self.rooms.length; i++) {		
+		self.rooms[i].deactivateSchedule();	
+	}
 };
 
 // ----------------------------------------------------------------------------
