@@ -14,6 +14,7 @@ function MyTestMod (id, controller) {
   this.binding = false;
   this.initialised = false;
   this.registered = false;
+  this.configloaded = false;
   this.heatingOn = false;
   this.waterOn = false;
   this.masterThermostat = -1;
@@ -62,6 +63,7 @@ MyTestMod.prototype.init = function (config)
       // register the hillview API
       if (!self.registered)
       {
+        console.log ("MYTESTMOD: registering API")
         self.registered = self.router.register();
       }
 
@@ -122,7 +124,7 @@ MyTestMod.prototype.init = function (config)
             zway.devices[hotWaterSwitch].instances[0].commandClasses[91].data.keyAttribute.bind(
                                                       function() 
                                                       {
-                                                        self.rooms[1].setPumpStatus(true);
+                                                        self.rooms[HOT_WATER_INDEX].setPumpStatus(true);
                                                       });
          }
          else {
@@ -139,17 +141,17 @@ MyTestMod.prototype.init = function (config)
                                                       {
 					                 var value = zway.devices[pumpController].instances[0].commandClasses[37].data.level.value;
 					                 console.log("MyTestMod: hot water pump status = " + zway.devices[pumpController].instances[0].commandClasses[37].data.level.value);
-                                                         console.log("MyTestMod: old status was = " + self.rooms[1].pumpStatus);
-                                                         if (value != self.rooms[1].pumpStatus) {
+                                                         console.log("MyTestMod: old status was = " + self.rooms[HOT_WATER_INDEX].pumpStatus);
+                                                         if (value != self.rooms[HOT_WATER_INDEX].pumpStatus) {
                                                             controller.addNotification("warning","Status of pump has changed to " + value,"module","MyTestMod");
-                                                            self.rooms[1].pumpStatus = value;
+                                                            self.rooms[HOT_WATER_INDEX].pumpStatus = value;
                                                             if (value == true) {
                                                               // start countdown timer
-                                                              self.rooms[1].pumpTimeRemaining = self.rooms[1].pumpDuration;
+                                                              self.rooms[HOT_WATER_INDEX].pumpTimeRemaining = self.rooms[1].pumpDuration;
                                                             }
                                                             else {
                                                               // pump is off already, just reset the timer
-                                                              self.rooms[1].pumpTimeRemaining = 0;
+                                                              self.rooms[HOT_WATER_INDEX].pumpTimeRemaining = 0;
                                                             }
                                                          }
                                                       });
@@ -159,13 +161,18 @@ MyTestMod.prototype.init = function (config)
          }
          self.pumpController = pumpController;     
 
-		self.validateAndLoadConfig();
-
         self.initialised = true;
       }
+	  
+	  if (self.initialised && !self.configloaded) {
+		  // load the config
+		  console.log ("MYTESTMOD: loading config");
+          self.validateAndLoadConfig();
+		  self.configloaded = true;
+	  }
 
       // once everything has been setup, we just service the rooms periodically
-      if (self.initialised) {
+      if (self.initialised && self.configloaded) {
          self.serviceRooms ();
       }
 
@@ -173,18 +180,12 @@ MyTestMod.prototype.init = function (config)
     
     this.controller.on('MyTestMod.poll', this.onPoll);
 
-//    this.setupRooms ();
-
     this.router = new HillViewAPI ();
     this.logger = new HillViewLogger ();
 }
 
-MyTestMod.prototype.stop = function () 
-{	
+MyTestMod.prototype.stop = function () {	
 	var self = this;
-
-    self.initialised = false;
-    self.rooms = [];
 
     console.log ("MYTESTMOD: stop");
     
@@ -197,6 +198,10 @@ MyTestMod.prototype.stop = function ()
 	for (i=0; i<self.rooms.length; i++) {		
 		self.rooms[i].deactivateSchedule();	
 	}
+	
+	// unload the config
+    self.rooms = [];	
+	self.configloaded = false;
 };
 
 // ----------------------------------------------------------------------------
@@ -221,19 +226,19 @@ MyTestMod.prototype.serviceRooms = function () {
   // access weather information and add to whole house
   // TODO: need to find id rather than hard code
   var vDev = controller.devices.get("OpenWeather_10");
-  this.rooms[0].externalTemp = vDev.get("metrics:level");
-  this.rooms[0].location = vDev.get("metrics:title");
+  this.rooms[WHOLE_HOUSE_INDEX].externalTemp = vDev.get("metrics:level");
+  this.rooms[WHOLE_HOUSE_INDEX].location = vDev.get("metrics:title");
 
   // poll for the hot water pump status
   // this is necessary because if the pump is activated manually we do not receive a notification
   zway.devices[pumpController].instances[0].commandClasses[37].Get();
-  this.rooms[1].checkPumpStatus();
+  this.rooms[HOT_WATER_INDEX].checkPumpStatus();
           
   // update each room and determine if we need to call for heat
-  // water (i==1) is treated separately
+  // hot water is treated separately
   for (i=0; i<this.rooms.length; i++) {
     this.rooms[i].updateCallForHeat();
-    if (this.rooms[i].callForHeat && this.rooms[i].primary && (i!=1)) {
+    if (this.rooms[i].callForHeat && this.rooms[i].primary && this.rooms[i].type != RoomType.ONOFF) {
       callForHeat = true;
     }
   }
@@ -260,13 +265,13 @@ MyTestMod.prototype.serviceRooms = function () {
       this.heatingWakeup = 0;
   }
 
-  if (this.rooms[1].callForHeat && !this.waterOn) {
+  if (this.rooms[HOT_WATER_INDEX].callForHeat && !this.waterOn) {
       controller.addNotification("warning", "turning water on", "module", "MyTestMod");
       this.waterOn = true;
       zway.devices[this.boilerController].instances[2].commandClasses[37].Set(true);
       this.waterWakeup = FAILSAFE_OVERRIDE_TIMER;
   }
-  else if (!this.rooms[1].callForHeat && this.waterOn) {
+  else if (!this.rooms[HOT_WATER_INDEX].callForHeat && this.waterOn) {
       controller.addNotification("warning", "turning water off", "module", "MyTestMod");
       this.waterOn = false;
       zway.devices[this.boilerController].instances[2].commandClasses[37].Set(false);
@@ -341,8 +346,7 @@ var PHILIO_ID = 316;
 var PHILIO_SENSOR_ID = 13;
 var PHILIO_SENSOR_TYPE = 2;
 
-var WHOLE_HOUSE_ID = 0;
-var HOT_WATER_ID = 1;
+
 
 var FAILSAFE_OVERRIDE_TIMER = 30;
 
@@ -369,35 +373,15 @@ MyTestMod.prototype.getRoomConfig = function (id) {
 MyTestMod.prototype.validateAndLoadConfig = function () {
   var room;
 
-  // these are fixed rooms and cannot be modified
-
   // TODO:
   // Whole House relies on there being a master thermostat and a boiler controller - should raise an error and exit if there is not
   // Hot Water relies on there being a 2nd boiler controller - should raise an error and exit if there is not
-  room = new Room (MAIN_HOUSE_ID,"Main House",RoomType.RADIATOR,RoomMode.TIMER);
-  // this will be pulled in from weather app
-  room.externalTemp = null;
-  this.rooms.push (room);
-  room.loadSchedule (null);   
-  room.activateSchedule();
 
-  room = new Room (HOT_WATER_ID,"Hot Water",RoomType.ONOFF,RoomMode.TIMER);
-  // TODO: hard coding for now
-  room.pumpRelay = this.pumpController;
-  room.pumpStatus = false;
-  room.pumpDuration = 5;
-  room.pumpTimeRemaining = 0;
-  room.boostSP = 1.0;
-  room.addNode(this.boilerController);
-  this.rooms.push (room);
-  room.loadSchedule (null);
-  room.activateSchedule();
-
-  // TODO: read the rest of the rooms from config, including valves etc.
-  // TODO: sanity check that config matches the network
+  // TODO: sanity check that config matches the network and that first room is ON/OFF type for hot water
   console.log ("MYTESTMOD: config rooms len is "+this.config.rooms.length);
   for (i=0; i<this.config.rooms.length; i++) {
-    room = new Room (BASE_ROOM_ID+i,this.config.rooms[i].title,this.config.rooms[i].type,this.config.rooms[i].mode);
+    var id = BASE_ROOM_ID + i;
+    room = new Room (id,this.config.rooms[i].title,this.config.rooms[i].type,this.config.rooms[i].mode);
     room.primary = this.config.rooms[i].primary;
     room.hasTempSensor = !!this.config.rooms[i].tempSensorId;
     if (room.hasTempSensor) room.tempSensorId = this.config.rooms[i].tempSensorId;
@@ -406,110 +390,25 @@ MyTestMod.prototype.validateAndLoadConfig = function () {
     for (j=0; j<this.config.rooms[i].trvs.length; j++) {
       room.addTRV(this.config.rooms[i].trvs[j]);
     }
+	if (id == WHOLE_HOUSE_ID) {
+      // this will be pulled in from weather app
+      room.externalTemp = null;		
+	}
+    if (id == HOT_WATER_ID) {
+      // TODO: hard coding for now - possibly add to config
+      room.pumpRelay = this.pumpController;
+      room.pumpStatus = false;
+      room.pumpDuration = 5;
+      room.pumpTimeRemaining = 0;
+      room.boostSP = 1.0;
+      room.addNode(this.boilerController);     
+	}
     this.rooms.push (room);
 	room.loadSchedule (this.config.rooms[i].schedule);
 	room.activateSchedule();	
   }
   
 }
-
-//
-// setupRooms
-//
-// Initialize all of the room objects by reading in the configuration
-// Check that the device ids are valid nodes
-//
-MyTestMod.prototype.setupRooms = function () {
-
-  var room;
-
-  // these are fixed rooms and cannot be modified
-
-  // TODO:
-  // Whole House relies on there being a master thermostat and a boiler controller - should raise an error and exit if there is not
-  // Hot Water relies on there being a 2nd boiler controller - should raise an error and exit if there is not
-  room = new Room (MAIN_HOUSE_ID,"Main House",RoomType.RADIATOR,RoomMode.TIMER);
-  // this will be pulled in from weather app
-  room.externalTemp = null;
-  this.rooms.push (room);
-  room.loadSchedule ();   
-  room.activateSchedule();
-
-  room = new Room (HOT_WATER_ID,"Hot Water",RoomType.ONOFF,RoomMode.TIMER);
-  // TODO: hard coding for now
-  room.pumpRelay = this.pumpController;
-  room.pumpStatus = false;
-  room.pumpDuration = 5;
-  room.pumpTimeRemaining = 0;
-  room.boostSP = 1.0;
-  room.addNode(this.boilerController);
-  this.rooms.push (room);
-  room.loadSchedule ();
-  room.activateSchedule();
-
-
-  // TODO: read the rest of the rooms from config, including valves etc.
-  // TODO: sanity check that config matches the network
-  room = new Room (LIVING_ROOM_ID,"Living Room",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addTempSensor("ZWayVDev_zway_2-0-49-1");
-  room.addTRV ("ZWayVDev_zway_20-0-67-1");
-  room.addTRV ("ZWayVDev_zway_30-0-67-1");
-  room.addTRV ("ZWayVDev_zway_31-0-67-1");
-  this.rooms.push (room);
-  room.loadSchedule ();
-  room.activateSchedule();
-
-  room = new Room (SIDE_ROOM_ID,"Side Room",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addTRV ("ZWayVDev_zway_36-0-67-1");
-  this.rooms.push (room);
-  room.loadSchedule ();   
-  room.activateSchedule();
-
-  room = new Room (SAM_OFFICE_ID,"Sam Office",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addTRV ("ZWayVDev_zway_29-0-67-1");
-  room.addTempSensor("ZWayVDev_zway_48-0-49-1");
-  this.rooms.push (room);
-  room.loadSchedule ();   
-  room.activateSchedule ();
-
-  room = new Room (BECKY_ROOM_ID,"Beckys Room",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addTRV ("ZWayVDev_zway_38-0-67-1");
-  this.rooms.push (room);
-  room.loadSchedule ();   
-  room.activateSchedule ();
-
-  room = new Room (TOMMY_ROOM_ID,"Tommys Room",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addTRV ("ZWayVDev_zway_39-0-67-1");
-  this.rooms.push (room);
-  room.loadSchedule ();   
-  room.activateSchedule ();
-
-  room = new Room (KITCHEN_ID,"Kitchen",RoomType.RADIATOR,RoomMode.TIMER);
-  room.addTRV ("ZWayVDev_zway_42-0-67-1");
-  room.addTRV ("ZWayVDev_zway_47-0-67-1");
-  room.addTempSensor("HTTP_Device_sensorMultilevel_21");
-  this.rooms.push (room);
-  room.loadSchedule ();   
-  room.activateSchedule ();
-
-  console.log ("MYTESTMOD: num rooms is " + this.rooms.length);
-}
-
-//
-// addRoom
-//
-// Called via REST API to create a new room / zone
-//
-MyTestMod.prototype.addRoom = function (title) {
-    // TODO: create a unique id
-    var room = new Room(8,roomProps['name'],RoomType.RADIATOR,RoomMode.TIMER);
-    room.loadSchedule();
-    room.activateSchedule();
-    boilerModule.rooms.push(room);
-}
-
-
-
 
 // TODO: where do this functions belong?
 
@@ -590,10 +489,10 @@ function isDeviceByManufacturer (devIndex, id, productId, productType)
 
 console.log ("MYTESTMOD: loading sub modules");
 
-executeFile ('modules/MyTestMod/schedule.js');
-executeFile ('modules/MyTestMod/room.js');
-executeFile ('modules/MyTestMod/router.js');
-executeFile ('modules/MyTestMod/logger.js');
+executeFile ('userModules/MyTestMod/schedule.js');
+executeFile ('userModules/MyTestMod/room.js');
+executeFile ('userModules/MyTestMod/router.js');
+executeFile ('userModules/MyTestMod/logger.js');
 
 // this module object
 var boilerModule = null;

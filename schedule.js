@@ -34,14 +34,7 @@ function ScheduleEvent (day,hour,minute,sp,id)
     });
    }
 
-   this.stop = function ()
-   {
-      // remove the event
-      this.active = false;
-      console.log ("MYTESTMOD: removing timer event " + this.eventName);
-      controller.emit("cron.removeTask",this.eventName);
-      controller.off(this.eventName,thisObject.tick);
-   }
+
 
    // this is the callback function which cron calls when the timer goes off
    this.tick = function () 
@@ -58,4 +51,13 @@ function ScheduleEvent (day,hour,minute,sp,id)
       room.activateNextEvent ();
 
    };
+
+   this.stop = function ()
+   {
+      // remove the event
+      this.active = false;
+      console.log ("MYTESTMOD: removing timer event " + this.eventName);
+      controller.emit("cron.removeTask",this.eventName);
+      controller.off(this.eventName,this.tick);
+   }
 }

@@ -5,16 +5,12 @@ var MAX_SETPOINT = 28.0;
 var HOTWATER_ON = 1.0;
 var HOTWATER_OFF = 0.0;
 
-var MAIN_HOUSE_ID  = 1000;
-var HOT_WATER_ID   = 1001;
-var BASE_ROOM_ID   = 2000;
+var WHOLE_HOUSE_INDEX = 0;
+var HOT_WATER_INDEX = 1;
 
-var LIVING_ROOM_ID = 1002;
-var SIDE_ROOM_ID   = 1003;
-var SAM_OFFICE_ID  = 1004;
-var BECKY_ROOM_ID  = 1005;
-var TOMMY_ROOM_ID  = 1006;
-var KITCHEN_ID     = 1007;
+var BASE_ROOM_ID   = 1000;
+var WHOLE_HOUSE_ID = BASE_ROOM_ID + WHOLE_HOUSE_INDEX;
+var HOT_WATER_ID = BASE_ROOM_ID + HOT_WATER_INDEX;
 
 var RoomType = 
 {
@@ -37,7 +33,8 @@ function Room (id,title,type,mode) {
   this.mode = mode;
   this.baseMode = mode;
   this.callForHeat = false;
-  this.offset = 0;
+  // TODO: add to config
+  this.offset = 2;
 
   this.trvs = [];
   this.nodes = [];
@@ -57,7 +54,6 @@ function Room (id,title,type,mode) {
 
 //
 // addNode
-// Add a TRV for radiator control.
 // nodeID is the ZWave ID of the physical device
 //
 Room.prototype.addNode= function (nodeID) {
@@ -67,7 +63,7 @@ Room.prototype.addNode= function (nodeID) {
 //
 // addTRV
 // Add a TRV for radiator control.
-// vDevID is of the form ''
+// vDevID is of the form 'ZWayVDev_zway_20-0-67-1'
 //
 Room.prototype.addTRV = function (vDevID) {
 	this.trvs.push (vDevID);
@@ -83,6 +79,17 @@ Room.prototype.addTempSensor= function (vDevID) {
   this.hasTempSensor = true;
 }
 
+
+/***************************************************************************************
+
+          PRIVATE FUNCTIONS
+
+***************************************************************************************/
+//
+// update
+// Update the current and desired temperatures 
+// Countdown the boost status
+//
 Room.prototype.update = function () {
   console.log ("MYTESTMOD: " + this.title + " mode is " + this.mode + " time is " + this.boostTimeRemaining);
   this.checkBoostStatus();
@@ -94,6 +101,13 @@ Room.prototype.update = function () {
   this.updateDesiredTemp();
 }
 
+//
+// adjustValves
+// This is called to make sure the TRVs of a room with radiators are set to the correct value as follows.
+// If a room's desired temperature is greater than the current temperature then the TRV is opened fully (MAX_SETPOINT)
+// Once the desired temperature has been reached (ie is less than or equal to the current temperature), then the TRV is set to the desired temp to
+// allow the TRV to adjust the open/close state according to its own readings of the current temp
+//
 Room.prototype.adjustValves = function () {
   var i;
 
@@ -176,16 +190,22 @@ Room.prototype.checkPumpStatus = function ()
 
 }
 
-
 Room.prototype.updateDesiredTemp = function ()
 {
   var msg = "updateDesiredTemp of " + this.title + " to ";
   var oldDesired = this.desiredTemp;
-  if (this.mode == RoomMode.OFF)
-  {
-    // no schedule in operation, frost protection
-    msg += " default " + DEFAULT_SETPOINT;
-    this.desiredTemp = DEFAULT_SETPOINT;
+  if (this.mode == RoomMode.OFF) {
+    // no schedule in operation
+    if (this.type == RoomType.ONOFF) {
+      // OFF means 0.0
+      msg += " on/off 0 ";
+      this.desiredTemp = 0.0;	  
+    }
+    else {
+      // OFF means frost protection
+      msg += " DEFAULT " + DEFAULT_SETPOINT;
+      this.desiredTemp = DEFAULT_SETPOINT;
+   }
   }
   else if (this.mode == RoomMode.BOOST)
   {
@@ -239,7 +259,7 @@ Room.prototype.updateCallForHeat = function () {
   this.adjustValves ();
   //TODO: need to do some kind of function like update - eg new update, but call old one from it - super update
   // hot water treated separately
-  if (this.id == HOT_WATER_ID) {
+  if (this.type == RoomType.ONOFF) {
       this.callForHeat = (this.desiredTemp != 0);
   }
   else {
@@ -258,7 +278,6 @@ Room.prototype.setBoostSP = function (sp) {
   // TODO: check values
   this.boostSP = sp;
   msg = "boost sp set to " + sp + " for " + this.title;
-//  this.updateDesiredTemp();
   this.updateCallForHeat();
   this.updateConfig();
   controller.addNotification("warning", msg, "module", "MyTestMod");
@@ -344,7 +363,6 @@ Room.prototype.setMode = function (mode)
   {
     msg = "bad mode value for " + this.title + ": " + mode;
   }
-//  this.updateDesiredTemp();
   this.updateCallForHeat();
   this.updateConfig();
   controller.addNotification("warning", msg, "module", "MyTestMod");
@@ -360,28 +378,27 @@ Room.prototype.setMode = function (mode)
 *****************************************************************************/
 Room.prototype.updateConfig = function () {
 	var roomConfig;
-	// TODO: remember to change this for all rooms once main and hot water are in config
-	if (this.id >= BASE_ROOM_ID) {
-		roomConfig = boilerModule.getRoomConfig(this.id);
-		roomConfig.mode = this.baseMode;
-		roomConfig.boostSP = this.boostSP;
-		roomConfig.boostDuration = this.boostDuration;
-		roomConfig.schedule = [];
-		for (j=0; j<this.schedule.length; j++) {
-			scheduleEntry = this.schedule[j];
-			roomConfig.schedule.push(scheduleEntry);			
-		}
-		boilerModule.saveConfig();
+
+	roomConfig = boilerModule.getRoomConfig(this.id);
+	roomConfig.mode = this.baseMode;
+	roomConfig.boostSP = this.boostSP;
+	roomConfig.boostDuration = this.boostDuration;
+	roomConfig.schedule = [];
+	for (j=0; j<this.schedule.length; j++) {
+		scheduleEntry = this.schedule[j];
+		roomConfig.schedule.push(scheduleEntry);			
 	}
+	boilerModule.saveConfig();	
 }
 
 /**********************************************************
 defaultSchedule
 
 ***********************************************************/
-Room.prototype.defaultSchedule = function (defSP) {
+Room.prototype.defaultSchedule = function () {
   var day;
   var i;
+  var defSP = (this.type == RoomType.ONOFF)?HOTWATER_OFF:DEFAULT_SETPOINT;
 
   // every day starts at the default temp
   for (day=0; day<7; day++)
@@ -389,7 +406,6 @@ Room.prototype.defaultSchedule = function (defSP) {
     this.schedule.push (new ScheduleEvent (day,0,0,defSP,this.title));
   }  
 }
-
 /**********************************************************
 loadSchedule
 
@@ -399,156 +415,26 @@ Read the schedule for this room from the config.
 Room.prototype.loadSchedule = function (schedule) {
   var day;
   var i;
-
-  // TODO: for now, creating a dummy schedule for each room
-  // TODO: do we need a unique id generator? for now using name of room
-
-  // whole house - basically, radiators that are not zwave enabled
-  // if they happen to be on, then they will heat according to how
-  // the set point compares to the master thermostat
-  if (this.id == MAIN_HOUSE_ID) {
-    this.defaultSchedule(DEFAULT_SETPOINT);
-
-    // turn radiators on for a few hours in the morning (6pm to 9am)
-    // and a few hours in the evening (8pm to 10pm)
-    for (day=0; day<7; day++)
-    {
-      this.schedule.push (new ScheduleEvent (day,6,0,COSY_SETPOINT+5,this.title));
-      this.schedule.push (new ScheduleEvent (day,9,0,DEFAULT_SETPOINT,this.title));
-      this.schedule.push (new ScheduleEvent (day,20,0,COSY_SETPOINT+5,this.title));
-      this.schedule.push (new ScheduleEvent (day,21,0,DEFAULT_SETPOINT,this.title));
-    }
-
-    this.offset = 2;
-  }
-
-
-  // hot water
-  if (this.id == HOT_WATER_ID) {
-    this.defaultSchedule(0.0);
-    // heat water every day from 6am until 9pm
-    for (day=0; day<7; day++) {
-        this.schedule.push (new ScheduleEvent (day,5,0,HOTWATER_ON,this.title));
-        this.schedule.push (new ScheduleEvent (day,21,0,HOTWATER_OFF,this.title));    
-    }
-  }
   
-  // optional rooms
-  if (this.id >= BASE_ROOM_ID) {
-	  if (schedule.length == 0) {
-		  this.defaultSchedule(DEFAULT_SETPOINT);
+  // if no schedule is present, then default it, otherwise use the one in the config
+  // TODO: need to validate config
+  if (schedule.length == 0) {
+		  this.defaultSchedule();
 		  for (j=0; j<this.schedule.length; j++) {
 			  scheduleEntry = this.schedule[j];
 			  schedule.push(scheduleEntry);
 		  }
 		  boilerModule.saveConfig();
-	  }
-	  else {
+  }
+  else {
 		  for (j=0; j<schedule.length; j++) {
 				scheduleEntry = schedule[j];
 				this.schedule.push (new ScheduleEvent (scheduleEntry.day,scheduleEntry.hour,scheduleEntry.minute,scheduleEntry.sp,this.title));
 		  }
-	  }
   }
-
-  // Living Room
-  if (this.id == LIVING_ROOM_ID)
-  {
-        this.defaultSchedule(DEFAULT_SETPOINT);
-        // weekend, heating on from 9am until 10pm
-        this.schedule.push (new ScheduleEvent (0,9,0,COSY_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (0,22,0,DEFAULT_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (6,9,0,COSY_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (6,22,0,DEFAULT_SETPOINT,this.title));
-
-        // tuesday, heating on early evening until 10pm
-        this.schedule.push (new ScheduleEvent (2,16,0,COSY_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (2,22,0,DEFAULT_SETPOINT,this.title));
-
-        // heating on from 7pm until 10pm for all other days
-        this.schedule.push (new ScheduleEvent (1,19,0,COSY_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (1,22,0,DEFAULT_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (3,19,0,COSY_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (3,22,0,DEFAULT_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (4,19,0,COSY_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (4,22,0,DEFAULT_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (5,19,0,COSY_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (5,22,0,DEFAULT_SETPOINT,this.title));
-
-	this.offset = 3;
-   }
-
-  // Side Room
-  if (this.id == SIDE_ROOM_ID)
-  {
-    this.defaultSchedule(DEFAULT_SETPOINT);
-    // turn radiator on for a few hours in the evening (7pm to 10pm)
-    for (day=0; day<7; day++)
-    {
-      this.schedule.push (new ScheduleEvent (day,19,0,COSY_SETPOINT,this.title));
-      this.schedule.push (new ScheduleEvent (day,22,0,DEFAULT_SETPOINT,this.title));
-    }
-
-    this.offset = 2;
-  }
-
-  // Sam's Office
-  if (this.id == SAM_OFFICE_ID)
-  {
-    // turn radiator on Monday, Thursday, Friday all day (9am to 8pm)
-    this.defaultSchedule(DEFAULT_SETPOINT);
-    for (day=0; day<7; day++)
-    {  
-      if ((day == 1) || (day == 4) || (day == 5))
-      {
-        this.schedule.push (new ScheduleEvent (day,9,0,COSY_SETPOINT,this.title));
-        this.schedule.push (new ScheduleEvent (day,20,0,DEFAULT_SETPOINT,this.title));
-      }
-    }
-    this.offset = 2;
-  }
-
-  // Becky's Room
-  if (this.id == BECKY_ROOM_ID)
-  {
-    this.defaultSchedule(DEFAULT_SETPOINT);
-    // turn radiator on for a short time in the morning
-    for (day=0; day<7; day++)
-    {
-      this.schedule.push (new ScheduleEvent (day,6,0,COSY_SETPOINT,this.title));
-      this.schedule.push (new ScheduleEvent (day,8,0,DEFAULT_SETPOINT,this.title));
-    }
-    this.offset = 2;
-  }
-
-  // Tommy's Room
-  if (this.id == TOMMY_ROOM_ID)
-  {
-    this.defaultSchedule(DEFAULT_SETPOINT);
-    // turn radiator on for a short time in the morning
-    for (day=0; day<7; day++)
-    {
-      this.schedule.push (new ScheduleEvent (day,6,0,COSY_SETPOINT,this.title));
-      this.schedule.push (new ScheduleEvent (day,8,0,DEFAULT_SETPOINT,this.title));
-    }
-    this.offset = 2;
-  }
-
-  // Kitchen
-  if (this.id == KITCHEN_ID)
-  {
-    this.defaultSchedule(DEFAULT_SETPOINT);
-    // turn radiator on in the morning
-    for (day=0; day<7; day++)
-    {
-      this.schedule.push (new ScheduleEvent (day,6,0,COSY_SETPOINT,this.title));
-      this.schedule.push (new ScheduleEvent (day,11,0,DEFAULT_SETPOINT,this.title));
-    }
-    this.offset = 3;
-  } 
   
-   // schedule must always be sorted after additions / deletions are made
-   this.schedule.sort(function(a,b)
+  // schedule must always be sorted after additions / deletions are made
+  this.schedule.sort(function(a,b)
               {
                  if (a.day != b.day)
                  {
@@ -568,7 +454,6 @@ Room.prototype.loadSchedule = function (schedule) {
    {
       console.log("MYTESTMOD day: " + this.schedule[i].day + " hour: " + this.schedule[i].hour + " min: " + this.schedule[i].minute);
    }
-
 }
 
 Room.prototype.updateSchedule = function (data)
